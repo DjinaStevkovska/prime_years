@@ -6,11 +6,8 @@ use PrimeYear\PrimeYear;
 if (isset($_POST['print']) && !empty($_POST['year']))
 {
     $inputYear = $_POST['year'];
-
     $primeYearClass = new PrimeYear($inputYear);
-
     $checkPrimeYear = $primeYearClass->check_prime($inputYear);
-
     $primeyears = array();
 
     for($i=$inputYear; $i>=1; $i--){
@@ -30,37 +27,82 @@ if (isset($_POST['print']) && !empty($_POST['year']))
 
     foreach ($primeyears as $year) {
         $dateTime =  $christmas['date'] .'-'. $christmas['month'] .'-'. $year;
-        // echo "<br>";
         // echo date("l - Y-m-d", strtotime($dateTime))."<br>";  
         $onlyName = date("l", strtotime($dateTime));
         $onlyYear = date("Y", strtotime($dateTime));
 
-
         $conn = mysqli_connect("localhost", "homestead", "secret", "laravel_db");
-        $sql = "SELECT * FROM prime_years WHERE year='$onlyYear'";
-        $query = mysqli_query($conn, $sql);
+        $selectUniqueYearsSql = "SELECT * FROM prime_years WHERE year='$onlyYear'";
+        $query = mysqli_query($conn, $selectUniqueYearsSql);
         $result = mysqli_fetch_all($query, MYSQLI_ASSOC);
-        // var_dump($result);
-        mysqli_close($conn);
-        $conn = mysqli_connect("localhost", "homestead", "secret", "laravel_db");
-
 
         $fromdb = (!empty($result)) ? ($result[0]['year']) : '';
 
-            if (!$fromdb == $onlyYear) {
-                $insertsql = "INSERT INTO prime_years (year, day) 
-                VALUES($onlyYear, '$onlyName')";
-                $query = mysqli_query($conn, $insertsql);
-
-            } 
+        if (!$fromdb == $onlyYear) {
+            $string_to_encrypt="$onlyName";
+            $password="password";
+            $encrypted_string=openssl_encrypt($string_to_encrypt,"AES-128-ECB",$password);
+            $insertSql = "INSERT INTO prime_years (year, day) 
+            VALUES($onlyYear, '$encrypted_string')";
+            $query = mysqli_query($conn, $insertSql);
+        } 
  
         mysqli_close($conn);
-        // header("Locaton: http://app.test/steets/index.php");
-        
-        if ($conn->connect_error) {
-            die("Connection failed: " . $conn->connect_error);
-            }
-            // echo 'Connected successfully';
     }
+        
+
+    if ($conn->connect_error) {
+        die("Connection failed: " . $conn->connect_error);
+        }
+        // echo 'Connected successfully';
+    
+    $conn = mysqli_connect("localhost", "homestead", "secret", "laravel_db");
+    $selectsql = "SELECT * FROM prime_years";
+    $selectQuery = mysqli_query($conn, $selectsql);
+    $result = mysqli_fetch_all($selectQuery, MYSQLI_ASSOC);
+
+    echo "<table>";
+    echo "
+        <tr>
+            <th>day</th>
+            <th>year</th>
+        </tr>
+    ";
+
+    foreach ($result as $x) {
+        $hashedDays = $x['day'];
+        $password="password";
+        $decrypted_day=openssl_decrypt($hashedDays,"AES-128-ECB",$password);
+        $year = $x['year'];
+
+        // var_dump($decrypted_day);
+        // var_dump($year);
+        // $decrypted_day . ", " . $year . "<br>";
+
+        echo "
+            <tr>
+                <td>" . $decrypted_day . "</td>
+                <td>" . $year . "</td>
+            </tr>
+        ";
+    }
+
+    echo "</table>";
+    mysqli_close($conn);
+
 }
 ?>
+
+
+
+
+<style>
+table, th, td {
+  border: 1px solid black;
+  border-collapse: collapse;
+}
+th, td {
+  padding: 5px;
+  text-align: left;    
+}
+</style>
